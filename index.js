@@ -3,7 +3,8 @@ stdin.setRawMode(true);
 stdin.resume()
 stdin.setEncoding('utf8')
 
-const align = require('./components/align')
+const { time } = require('console');
+const fs = require('fs')
 
 const cons = {
     clear: () => { console.clear() },
@@ -14,21 +15,97 @@ const cons = {
 
 cons.clear()
 
-var navHeight = 1
-var commandBarHeight = 0
-var commandBarShow = false
+// Nav
 
-function display() {
-    cons.clear()
-    cons.log('Dashboard')
-    for (let i = 0; i < cons.height() - navHeight - commandBarHeight; i++) {
-        cons.log('\n')
+var navHeight = 1
+var navIndex = 0
+var navItems = ['Dashboard', 'Todo', 'Settings', 'About']
+function setNavIndex(value) {
+    if (!(value >= navItems.length) && !(value < 0)) {
+        navIndex = value
+        display()
     }
-    if (commandBarShow) {
-        cons.log('> ')
+}
+function navBuild() {
+    var navLength = 0
+    for (const i in navItems) {
+        navLength = navLength + navItems[i].length
+    }
+    navLength = navLength + navItems.length - 1
+    var padding = (cons.width() - navLength) / 2 - 1
+    for (let i = 0; i < padding; i++) {
+        cons.log(' ')
+    }
+    for (const i in navItems) {
+        if (i == navIndex) {
+            cons.log(`\x1B[37m${navItems[i]}\x1B[39m`)
+        } else {
+            cons.log(`\x1B[90m${navItems[i]}\x1B[39m`)
+        }
+        if (i != (navItems.length - 1)) {
+            cons.log(' ')
+        }
+    }
+    for (let i = 0; i < padding; i++) {
+        cons.log(' ')
     }
 }
 
+// Content
+function approximateRow(num) {
+    if (num > Math.floor(num)) {
+        num = Math.floor(num) + 1
+    }
+    return num
+}
+function contentBuild() {
+    var height = 0
+    var builders = [
+        () => {
+            cons.log('\n')
+            height++
+
+            var date = new Date()
+            var monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Spt", "Oct", "Nov", "Dec"]
+            var dateOutput = `Hello, Today is ${monthName[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}.`
+            var textHeight = approximateRow(dateOutput.length / cons.width())
+
+            var todoCount = 16
+            var todoOutput = ''
+            if (todoCount) {
+                var thing
+                if (todoCount == 1) {
+                    thing = 'thing'
+                } else {
+                    thing = 'things'
+                }
+                todoOutput = `You have ${todoCount} ${thing} to do.`
+                textHeight = textHeight + approximateRow(todoOutput.length / cons.width())
+            }
+
+            var timeOutput = `Current Time: ${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+            textHeight = textHeight + approximateRow(timeOutput.length / cons.width())
+
+            height = textHeight + 3
+
+            cons.log(`${dateOutput}\n${todoOutput}\n\n${timeOutput}`)
+
+            setTimeout(() => {
+                display()
+            }, 1000);
+        },
+        () => { },
+        () => { },
+        () => { },
+    ]
+    builders[navIndex]()
+    return height
+}
+
+// Command Bar
+
+var commandBarHeight = 0
+var commandBarShow = false
 function setCommandBarShow(value) {
     if (value == true) {
         commandBarHeight = 1
@@ -40,7 +117,11 @@ function setCommandBarShow(value) {
     }
     display()
 }
-
+function commandBarBuild() {
+    if (commandBarShow) {
+        cons.log('> ')
+    }
+}
 function runCommand(command) {
     switch (command) {
         case 'exit':
@@ -51,6 +132,18 @@ function runCommand(command) {
     }
 }
 
+// Main display builder
+
+function display() {
+    cons.clear()
+    navBuild()
+    const contentHeight = contentBuild()
+    for (let i = 0; i < cons.height() - navHeight - contentHeight - commandBarHeight; i++) {
+        cons.log('\n')
+    }
+    commandBarBuild()
+}
+
 var inputStream = ''
 
 stdin.on('data', function (key) {
@@ -59,16 +152,21 @@ stdin.on('data', function (key) {
     }
     if (key == '\r\n' || key == '\r' || key == '\n') {
         runCommand(inputStream)
-    }
-    if (commandBarShow) {
-        process.stdout.write(key);
-
+    } else if (commandBarShow && key != '\u001b[D' && key != '\u001b[C') {
+        process.stdout.write(key)
         inputStream = inputStream + key
+    }
+    if (key == '\u001b[D') {
+        setNavIndex(navIndex - 1)
+    }
+    if (key == '\u001b[C') {
+        setNavIndex(navIndex + 1)
     }
     if (key == '>') {
         setCommandBarShow(true)
     }
     if (key == '<') {
+        inputStream = ''
         setCommandBarShow(false)
     }
 })
