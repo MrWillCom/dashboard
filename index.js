@@ -86,7 +86,7 @@ function contentBuild() {
             var timeOutput = `Current Time: ${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
             textHeight = textHeight + approximateRow(timeOutput.length / cons.width())
 
-            height = textHeight + 3
+            height = textHeight + 1
 
             cons.log(`${dateOutput}\n${todoOutput}\n\n${timeOutput}`)
 
